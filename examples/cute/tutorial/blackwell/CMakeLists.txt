@@ -26,6 +26,22 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# Basic CuTe concept tutorials (work on all architectures)
+cutlass_example_add_executable(
+  cute_tutorial_00_layout_basics
+  00_layout_basics.cu
+)
+
+cutlass_example_add_executable(
+  cute_tutorial_00_tensor_basics
+  00_tensor_basics.cu
+)
+
+cutlass_example_add_executable(
+  cute_tutorial_00_tile_basics
+  00_tile_basics.cu
+)
+
 if (CUTLASS_NVCC_ARCHS MATCHES 100a)
 cutlass_example_add_executable(
   cute_tutorial_01_mma_sm100

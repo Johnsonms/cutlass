@@ -585,14 +585,25 @@ partition_fragment_C(TiledMMA<Args...> const& mma, Shape_MN const& shapeMN)
 // See TiledMMA::get_slice(thr_idx).partition_fragment_A(tensorA) instead.
 
 template <class... Args, class Shape_MK>
-CUTE_HOST_DEVICE constexpr
+CUTE_HOST_DEVICE
 auto
 partition_shape_A(TiledMMA<Args...> const& mma, Shape_MK const& shape_MK)
 {
+  printf(">>> INSIDE partition_shape_A function <<<\n");
+  printf("Input shape_MK: "); print(shape_MK); printf("\n");
+
   auto dummy    = make_layout(shape(shape_MK));
+  printf("After make_layout, dummy: "); print(dummy); printf("\n");
+
   auto dummy_tv = mma.thrfrg_A(dummy);
+  printf("After thrfrg_A, dummy_tv: "); print(dummy_tv); printf("\n");
+
   // Slice+rearrange like partition_A
   auto dummy_v  = dummy_tv(Int<0>{}, make_coord(_, repeat<rank(dummy)>(_)));
+  printf("After slice, dummy_v: "); print(dummy_v); printf("\n");
+  printf("Result shape: "); print(shape(dummy_v)); printf("\n");
+  printf("<<< EXITING partition_shape_A >>>\n\n");
+
   return shape(dummy_v);
 
 }

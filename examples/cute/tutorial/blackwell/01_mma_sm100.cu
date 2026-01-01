@@ -172,17 +172,43 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   Tensor gC = local_tile(mC, mma_tiler, mma_coord, Step<_1,_1, X>{});  // (MmaTile_M, MmaTile_N)
   Tensor gD = local_tile(mD, mma_tiler, mma_coord, Step<_1,_1, X>{});  // (MmaTile_M, MmaTile_N)
 
-  if (thread0()) {
-    print("mA:\t"); print(mA); print("\n");   // mA:   gmem_ptr[16b](GMEM_ADDR_A) o (512,256):(256,_1)
-    print("mB:\t"); print(mB); print("\n");   // mB:   gmem_ptr[16b](GMEM_ADDR_B) o (1024,256):(256,_1)
-    print("mC:\t"); print(mC); print("\n");   // mC:   gmem_ptr[32b](GMEM_ADDR_C) o (512,1024):(1024,_1)
-    print("mD:\t"); print(mD); print("\n");   // mD:   gmem_ptr[32b](GMEM_ADDR_D) o (512,1024):(1024,_1)
+  // // Print thread 0 from block (0,0) first
+  // if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+  //   printf("\n=== Thread 0 - Block (0,0) Info ===\n");
+  //   printf("[T0][B0,0] mA:\t"); print(mA); printf("\n");
+  //   printf("[T0][B0,0] mB:\t"); print(mB); printf("\n");
+  //   printf("[T0][B0,0] mC:\t"); print(mC); printf("\n");
+  //   printf("[T0][B0,0] mD:\t"); print(mD); printf("\n");
+  //   printf("[T0][B0,0] mma_coord:\t"); print(mma_coord); printf("\n");
+  //   printf("[T0][B0,0] mma_tiler:\t"); print(mma_tiler); printf("\n");
+  //   printf("[T0][B0,0] gA:\t"); print(gA); printf("\n");
+  //   printf("[T0][B0,0] gB:\t"); print(gB); printf("\n");
+  //   printf("[T0][B0,0] gC:\t"); print(gC); printf("\n");
+  //   printf("[T0][B0,0] gD:\t"); print(gD); printf("\n");
+  //   printf("==================\n\n");
 
-    print("gA:\t"); print(gA); print("\n");   // gA:   gmem_ptr[16b](GMEM_ADDR_A + offset_for_mma_tile) o (_128,_64,4):(256,_1,_64)
-    print("gB:\t"); print(gB); print("\n");   // gB:   gmem_ptr[16b](GMEM_ADDR_B + offset_for_mma_tile) o (_256,_64,4):(_1,256,16384)
-    print("gC:\t"); print(gC); print("\n");   // gC:   gmem_ptr[32b](GMEM_ADDR_C + offset_for_mma_tile) o (_128,_256):(256,_1)
-    print("gD:\t"); print(gD); print("\n");   // gD:   gmem_ptr[32b](GMEM_ADDR_D + offset_for_mma_tile) o (_128,_256):(256,_1)
-  } __syncthreads();
+  //   // Small delay to help separate outputs
+  //   for (volatile int i = 0; i < 1000000; i++)
+  //     for (volatile int j = 0; j < 1000000; j++);
+  // }
+  // __syncthreads();
+
+  // Then print thread 0 from block (1,1)
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("=== Thread 0 - Block (1,1) Info ===\n");
+    printf("[T0][B1,1] mA:\t"); print(mA); printf("\n");
+    printf("[T0][B1,1] mB:\t"); print(mB); printf("\n");
+    printf("[T0][B1,1] mC:\t"); print(mC); printf("\n");
+    printf("[T0][B1,1] mD:\t"); print(mD); printf("\n");
+    printf("[T0][B1,1] mma_coord:\t"); print(mma_coord); printf("\n");
+    printf("[T0][B1,1] mma_tiler:\t"); print(mma_tiler); printf("\n");
+    printf("[T0][B1,1] gA:\t"); print(gA); printf("\n");
+    printf("[T0][B1,1] gB:\t"); print(gB); printf("\n");
+    printf("[T0][B1,1] gC:\t"); print(gC); printf("\n");
+    printf("[T0][B1,1] gD:\t"); print(gD); printf("\n");
+    printf("==================\n\n");
+  }
+  __syncthreads();
 
   // The SMEM tensors
 
@@ -207,7 +233,9 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   Tensor tCgC = cta_mma.partition_C(gC);         // (MmaC, NumMma_M, NumMma_N)
   Tensor tCgD = cta_mma.partition_C(gD);         // (MmaC, NumMma_M, NumMma_N)
 
-  if (thread0()) {
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    print("tiled_mma:\t"); print(tiled_mma); print("\n");
+    print("cta_mma:\t"); print(cta_mma); print("\n");
     print("tCgA:\t"); print(tCgA); print("\n");  // tCgA:   gmem_ptr[16b](GMEM_ADDR_A + offset_for_mma_tile + offset_for_mma) o ((_128,_16),_1,_4,4):((256,_1),_0,_16,_64)
     print("tCgB:\t"); print(tCgB); print("\n");  // tCgB:   gmem_ptr[16b](GMEM_ADDR_B + offset_for_mma_tile + offset_for_mma) o ((_256,_16),_1,_4,4):((_1,256),_0,4096,16384)
     print("tCgC:\t"); print(tCgC); print("\n");  // tCgC:   gmem_ptr[32b](GMEM_ADDR_C + offset_for_mma_tile + offset_for_mma) o ((_128,_256),_1,_1):((256,_1),_0,_0)
@@ -222,12 +250,20 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   // - The first mode of each descriptor represents the SMEM for a single MMA operation
   Tensor tCrA = cta_mma.make_fragment_A(tCsA);      // (MmaA, NumMma_M, NumMma_K, Tiles_K)
   Tensor tCrB = cta_mma.make_fragment_B(tCsB);      // (MmaB, NumMma_M, NumMma_K, Tiles_K)
-
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    print("tCsA:\t"); print(tCsA); print("\n"); // tCsA:   Sw<3,4,3>_smem_ptr[16b](0x7f7200000400) o ((_128,_16),_1,_4):((_64,_1),_0,_16)
+    print("tCsB:\t"); print(tCsB); print("\n"); // tCsB:   Sw<3,4,3>_smem_ptr[16b](0x7f7200004400) o ((_256,_16),_1,_4):((_64,_1),_0,_16)
+    print("tCrA:\t"); print(tCrA); print("\n"); // tCrA:   SMEM::DescriptorIterator o (_1,_1,_4):(_0,_0,_2)
+    print("tCrB:\t"); print(tCrB); print("\n"); // tCrB:   SMEM::DescriptorIterator o (_1,_1,_4):(_0,_0,_2)
+  }
   // TMEM Allocation
   // On SM100 architecture, accumulators are stored exclusively in tensor memory (TMEM).
   // ThrMma's make_fragment_C() creates a TMEM tensor with the appropriate layout for the accumulator.
   Tensor tCtAcc = cta_mma.make_fragment_C(tCgC);    // (MmaC, NumMma_M, NumMma_N)
 
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    print("tCtAcc:\t"); print(tCtAcc); print("\n"); // tCtAcc: tmem_[32b](TMEM_ADDR) o ((_128,_256),_1,_1):((_65536,_1),_0,_0)
+  }
   uint32_t elect_one_thr  = cute::elect_one_sync();
   uint32_t elect_one_warp = (threadIdx.x / 32 == 0);
 
@@ -240,7 +276,7 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   __syncthreads(); // Wait for all threads until warp0 allocates TMEM
   tCtAcc.data() = shared_storage.tmem_base_ptr;
 
-  if (thread0()) {
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
     print("tCsA:\t"); print(tCsA); print("\n");     // tCsA:   Sw<3,4,3>_smem_ptr[16b](SMEM_ADDR_A) o ((_128,_16),_1,_4):((_64,_1),_0,_16)
     print("tCsB:\t"); print(tCsB); print("\n");     // tCsB:   Sw<3,4,3>_smem_ptr[16b](SMEM_ADDR_B) o ((_256,_16),_1,_4):((_64,_1),_0,_16)
     print("tCrA:\t"); print(tCrA); print("\n");     // tCrA:   UMMA::DescriptorIterator o (_1,_1,_4):(_0,_0,_2)
@@ -315,8 +351,35 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   // Load TMEM -> RMEM
   copy(tiled_t2r_copy, tDtAcc, tDrAcc);
 
+  // DEBUG: Print accumulator values (enable for debugging)
+  #ifdef DEBUG_PRINT_TENSORS
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== DEBUG: Accumulator Values (Thread 0) ===\n");
+    printf("tDrAcc shape: "); print(shape(tDrAcc)); printf("\n");
+    printf("First 4 accumulator values:\n");
+    for (int i = 0; i < min(4, size(tDrAcc)); ++i) {
+      printf("  tDrAcc[%d] = %.6f\n", i, float(tDrAcc(i)));
+    }
+    printf("First 4 C values:\n");
+    for (int i = 0; i < min(4, size(tDrC)); ++i) {
+      printf("  tDrC[%d] = %.6f\n", i, float(tDrC(i)));
+    }
+  }
+  #endif
+
   // AXPBY RMEM -> RMEM: tDrC = alpha * tDrAcc + beta * tDrC
   axpby(alpha, tDrAcc, beta, tDrC);
+
+  // DEBUG: Print final values before store (enable for debugging)
+  #ifdef DEBUG_PRINT_TENSORS
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== DEBUG: Final D Values Before Store ===\n");
+    printf("First 4 output values (D = alpha*Acc + beta*C):\n");
+    for (int i = 0; i < min(4, size(tDrC)); ++i) {
+      printf("  tDrC[%d] = %.6f\n", i, float(tDrC(i)));
+    }
+  }
+  #endif
   // Store RMEM -> GMEM
   copy(tDrC, tDgD);
 
@@ -418,7 +481,17 @@ void gemm_host_f16xf16_f32_f32_tnt(TypeA const* device_ptr_A, LayoutA layout_A,
   //  * Note that SMEM layouts are needed to determine SMEM allocation for kernel launch.
 
   // Pre-partitioned Tile Shape (MmaTile_M, MmaTile_K) to post-partitioned (MmaA, NumMma_M, NumMma_K)
-  auto mma_shape_A = partition_shape_A(tiled_mma, make_shape(size<0>(mma_tiler), size<2>(mma_tiler)));
+  printf("\n=== Before partition_shape_A ===\n");
+  printf("mma_tiler: "); print(mma_tiler); printf("\n");
+  printf("Input to partition_shape_A: ");
+  auto input_shape_A = make_shape(size<0>(mma_tiler), size<2>(mma_tiler));
+  print(input_shape_A); printf("\n");
+
+  auto mma_shape_A = partition_shape_A(tiled_mma, input_shape_A);
+
+  printf("=== After partition_shape_A ===\n");
+  printf("Result mma_shape_A: "); print(mma_shape_A); printf("\n\n");
+
   // Pre-partitioned Tile Shape (MmaTile_N, MmaTile_K) to post-partitioned (MmaB, NumMma_N, NumMma_K)
   auto mma_shape_B = partition_shape_B(tiled_mma, make_shape(size<1>(mma_tiler), size<2>(mma_tiler)));
 
@@ -441,8 +514,25 @@ void gemm_host_f16xf16_f32_f32_tnt(TypeA const* device_ptr_A, LayoutA layout_A,
 
   // The cluster shape and layout
   auto cluster_shape = make_shape(Int<1>{}, Int<1>{}, Int<1>{});
-  Layout cluster_layout_vmnk = tiled_divide(make_layout(cluster_shape),
-                                            make_tile(typename decltype(tiled_mma)::AtomThrID{}));
+  printf("\n=== Cluster Layout Computation ===\n");
+  printf("cluster_shape: "); print(cluster_shape); printf("\n");
+
+  auto cluster_layout_input = make_layout(cluster_shape);
+  printf("make_layout(cluster_shape): "); print(cluster_layout_input); printf("\n");
+
+  auto atom_thr_id = typename decltype(tiled_mma)::AtomThrID{};
+  printf("AtomThrID: "); print(atom_thr_id); printf("\n");
+
+  auto tile = make_tile(atom_thr_id);
+  printf("make_tile(AtomThrID): "); print(tile); printf("\n");
+
+  Layout cluster_layout_vmnk = tiled_divide(cluster_layout_input, tile);
+  printf("cluster_layout_vmnk = tiled_divide(...): "); print(cluster_layout_vmnk); printf("\n");
+  printf("  size<0> (V): %d\n", int(size<0>(cluster_layout_vmnk)));
+  printf("  size<1> (M): %d\n", int(size<1>(cluster_layout_vmnk)));
+  printf("  size<2> (N): %d\n", int(size<2>(cluster_layout_vmnk)));
+  printf("  size<3> (K): %d\n", int(size<3>(cluster_layout_vmnk)));
+  printf("=================================\n\n");
 
   ////////////////////////////////////////////////////////////
   //
@@ -460,6 +550,15 @@ void gemm_host_f16xf16_f32_f32_tnt(TypeA const* device_ptr_A, LayoutA layout_A,
                                   decltype(mA), decltype(mB), decltype(mC), decltype(mD),
                                   decltype(mma_tiler), decltype(tiled_mma), decltype(cluster_shape),
                                   Alpha, Beta>;
+
+  // Increase stack size for debug builds (fixes stack overflow with -O0)
+  size_t stack_size = 0;
+  CUTE_CHECK_ERROR(cudaDeviceGetLimit(&stack_size, cudaLimitStackSize));
+  printf("Current stack size: %zu bytes\n", stack_size);
+  // Set to 128KB per thread for CuTe deep template instantiation in debug mode
+  CUTE_CHECK_ERROR(cudaDeviceSetLimit(cudaLimitStackSize, 131072));
+  CUTE_CHECK_ERROR(cudaDeviceGetLimit(&stack_size, cudaLimitStackSize));
+  printf("New stack size: %zu bytes\n", stack_size);
 
   // Set kernel attributes (set SMEM)
   CUTE_CHECK_ERROR(cudaFuncSetAttribute(kernel_ptr,
@@ -483,6 +582,75 @@ void gemm_host_f16xf16_f32_f32_tnt(TypeA const* device_ptr_A, LayoutA layout_A,
 
 #endif // defined(CUTLASS_ARCH_MMA_SM100_SUPPORTED)
 
+void tensor_operations()
+{
+  using Type = float;
+
+  // Create example data
+  constexpr int total_size = 3 * 2 * 2 * 5 * 2; // 120 elements
+  std::vector<Type> data(total_size);
+  for (int i = 0; i < total_size; ++i) {
+    data[i] = static_cast<Type>(i);
+  }
+  Type* ptr = data.data();
+
+  std::cout << "\n=== CuTe Tensor Operations Demo ===\n\n";
+
+  // Create a 5D tensor with hierarchical shape: ((_3,2),(2,_5,_2))
+  // Shape: ((3,2),(2,5,2)) = outer: (3,2), inner: (2,5,2)
+  // Stride: ((4,1),(2,13,100))
+  auto A = make_tensor(make_gmem_ptr(ptr),
+                       make_shape (make_shape (Int<3>{},2), make_shape (       2,Int<5>{},Int<2>{})),
+                       make_stride(make_stride(       4,1), make_stride(Int<2>{},      13,     100)));
+
+  // print_latex expects Layout, not Tensor - use layout(A) to extract it
+  print_latex(make_layout(shape(A), stride(A)));
+  printf("Original Tensor A:\n");
+  printf("  Shape:  "); print(shape(A)); printf("\n");
+  printf("  Stride: "); print(stride(A)); printf("\n");
+  printf("  Rank:   %d\n", int(rank(A)));
+  printf("  Tensor A: "); print(A); printf("\n\n");
+
+  // Slice operation 1: Fix first outer dimension to 2, keep rest
+  // A(2,_) selects 3rd element of first outer mode, keeps all inner modes
+  auto B = A(2,_);
+  printf("B = A(2,_):\n");
+  printf("  Shape:  "); print(shape(B)); printf("\n");
+  printf("  Stride: "); print(stride(B)); printf("\n");
+  printf("  Tensor B: "); print(B); printf("\n\n");
+
+  // Slice operation 2: Keep first outer mode, fix second inner mode to 5
+  // A(_,5) keeps all outer modes, selects from inner modes
+  auto C = A(_,5);
+  printf("C = A(_,5):\n");
+  printf("  Shape:  "); print(shape(C)); printf("\n");
+  printf("  Stride: "); print(stride(C)); printf("\n");
+  printf("  Tensor C: "); print(C); printf("\n\n");
+
+  // Slice operation 3: Keep all outer modes as coordinate, fix inner to 5
+  auto D = A(make_coord(_,_),5);
+  printf("D = A(make_coord(_,_),5):\n");
+  printf("  Shape:  "); print(shape(D)); printf("\n");
+  printf("  Stride: "); print(stride(D)); printf("\n");
+  printf("  Tensor D: "); print(D); printf("\n\n");
+
+  // Slice operation 4: Complex slicing
+  auto E = A(make_coord(_,1),make_coord(0,_,1));
+  printf("E = A(make_coord(_,1),make_coord(0,_,1)):\n");
+  printf("  Shape:  "); print(shape(E)); printf("\n");
+  printf("  Stride: "); print(stride(E)); printf("\n");
+  printf("  Tensor E: "); print(E); printf("\n\n");
+
+  // Slice operation 5: More complex slicing
+  auto F = A(make_coord(2,_),make_coord(_,3,_));
+  printf("F = A(make_coord(2,_),make_coord(_,3,_)):\n");
+  printf("  Shape:  "); print(shape(F)); printf("\n");
+  printf("  Stride: "); print(stride(F)); printf("\n");
+  printf("  Tensor F: "); print(F); printf("\n\n");
+
+  printf("=== End of Tensor Operations Demo ===\n\n");
+}
+
 int main(int argc, char** argv)
 {
   cudaDeviceProp props;
@@ -502,6 +670,9 @@ int main(int argc, char** argv)
   }
 
 #if defined(CUTLASS_ARCH_MMA_SM100_SUPPORTED)
+
+  // Demonstrate CuTe tensor operations and slicing
+  // tensor_operations();
 
   int Gemm_M = 512;
   if (argc >= 2)

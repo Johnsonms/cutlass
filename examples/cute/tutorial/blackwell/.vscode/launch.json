@@ -1,0 +1,166 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug 00_layout_basics",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_00_layout_basics",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "preLaunchTask": "Build 00_layout_basics",
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug 00_tensor_basics",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_00_tensor_basics",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "preLaunchTask": "Build 00_tensor_basics",
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug 00_tile_basics",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_00_tile_basics",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "preLaunchTask": "Build 00_tile_basics",
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug 01_mma_sm100 (512x1024x256)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_01_mma_sm100",
+            "args": ["512", "1024", "256"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "preLaunchTask": "Build 01_mma_sm100",
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug 01_mma_sm100 (custom size)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_01_mma_sm100",
+            "args": ["${input:gemmM}", "${input:gemmN}", "${input:gemmK}"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "preLaunchTask": "Build 01_mma_sm100",
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(No Build) Debug 00_layout_basics",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell/cute_tutorial_00_layout_basics",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/../../../../../../build/examples/cute/tutorial/blackwell",
+            "environment": [],
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Debug Local 01_mma_sm100_debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/01_mma_sm100_debug",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "CUDA_LAUNCH_BLOCKING",
+                    "value": "1"
+                }
+            ],
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set breakpoint pending on",
+                    "text": "set breakpoint pending on",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "gemmM",
+            "type": "promptString",
+            "description": "Enter GEMM M dimension",
+            "default": "512"
+        },
+        {
+            "id": "gemmN",
+            "type": "promptString",
+            "description": "Enter GEMM N dimension",
+            "default": "1024"
+        },
+        {
+            "id": "gemmK",
+            "type": "promptString",
+            "description": "Enter GEMM K dimension",
+            "default": "256"
+        }
+    ]
+}

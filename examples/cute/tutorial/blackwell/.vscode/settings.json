@@ -1,0 +1,35 @@
+{
+    "files.associations": {
+        "*.cu": "cuda-cpp",
+        "*.cuh": "cuda-cpp",
+        "*.hpp": "cpp",
+        "tensor.hpp": "cpp",
+        "layout.hpp": "cpp"
+    },
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/../../../../../../include",
+        "${workspaceFolder}/../../../../../../tools/util/include",
+        "/usr/local/cuda/include"
+    ],
+    "C_Cpp.default.defines": [
+        "__CUDACC__",
+        "CUTLASS_ARCH_MMA_SM100_SUPPORTED"
+    ],
+    "C_Cpp.default.compilerPath": "/usr/local/cuda/bin/nvcc",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-x64",
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "[cuda-cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/*.o": true
+    },
+    "search.exclude": {
+        "**/build": true,
+        "**/.vscode": false
+    }
+}

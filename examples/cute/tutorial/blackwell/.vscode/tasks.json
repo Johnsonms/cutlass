@@ -1,0 +1,118 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build 00_layout_basics",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "cute_tutorial_00_layout_basics",
+                "-j12"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build 00_tensor_basics",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "cute_tutorial_00_tensor_basics",
+                "-j12"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build 00_tile_basics",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "cute_tutorial_00_tile_basics",
+                "-j12"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build 01_mma_sm100",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "cute_tutorial_01_mma_sm100",
+                "-j12"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build All CuTe Tutorials",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "cute_tutorial_00_layout_basics",
+                "cute_tutorial_00_tensor_basics",
+                "cute_tutorial_00_tile_basics",
+                "cute_tutorial_01_mma_sm100",
+                "-j12"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Clean Build Directory",
+            "type": "shell",
+            "command": "rm",
+            "args": [
+                "-rf",
+                "examples/cute/tutorial/blackwell/CMakeFiles",
+                "examples/cute/tutorial/blackwell/cute_tutorial_*"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/../../../../../../build"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ]
+}

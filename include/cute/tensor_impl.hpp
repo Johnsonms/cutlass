@@ -979,22 +979,69 @@ flat_divide(Tensor    && tensor,
 // Then slice into the second mode (the "Rest" mode) with Coord
 template <class Tensor, class Tiler, class Coord,
           __CUTE_REQUIRES(is_tensor<remove_cvref_t<Tensor>>::value)>
-CUTE_HOST_DEVICE constexpr
+CUTE_HOST_DEVICE  // constexpr removed to allow runtime prints
 auto
 inner_partition(Tensor    && tensor,
                 Tiler const& tiler,
                 Coord const& coord)
 {
+// Commented out debug prints
+/*
+#if defined(__CUDA_ARCH__)
+  if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf(">>> INSIDE inner_partition function <<<\n");
+    printf("Input tensor: "); print(tensor); printf("\n");
+    printf("Input tiler: "); print(tiler); printf("\n");
+    printf("Input coord: "); print(coord); printf("\n");
+  }
+#endif
+*/
+
   auto tensor_tiled = zipped_divide(static_cast<Tensor&&>(tensor), tiler);
   constexpr int R0 = decltype(rank<0>(tensor_tiled))::value;
+
+/*
+#if defined(__CUDA_ARCH__)
+  if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("After zipped_divide, tensor_tiled: "); print(tensor_tiled); printf("\n");
+    printf("R0 (rank<0> of tensor_tiled): %d\n", R0);
+  }
+#endif
+*/
 
   // The coord slices into the second mode (the "rest" mode), flatten the first
   if constexpr (is_tuple<Coord>::value) {
     // Append trailing modes if coord is tuple
     constexpr int R1 = decltype(rank<1>(tensor_tiled))::value;
+/*
+#if defined(__CUDA_ARCH__)
+    if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+      printf("Coord is tuple, R1 (rank<1> of tensor_tiled): %d\n", R1);
+      auto repeat_val = repeat<R0>(_);
+      auto append_val = append<R1>(coord,_);
+      printf("repeat<R0>(_): "); print(repeat_val); printf("\n");
+      printf("append<R1>(coord,_): "); print(append_val); printf("\n");
+      auto result = tensor_tiled(repeat_val, append_val);
+      printf("Result: "); print(result); printf("\n");
+      printf("<<< EXITING inner_partition >>>\n\n");
+      return result;
+    }
+#endif
+*/
     return tensor_tiled(repeat<R0>(_), append<R1>(coord,_));
   } else {
     // Flat indexing if coord is not tuple
+/*
+#if defined(__CUDA_ARCH__)
+    if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+      printf("Coord is NOT tuple (flat indexing)\n");
+      auto result = tensor_tiled(repeat<R0>(_), coord);
+      printf("Result: "); print(result); printf("\n");
+      printf("<<< EXITING inner_partition >>>\n\n");
+      return result;
+    }
+#endif
+*/
     return tensor_tiled(repeat<R0>(_), coord);
   }
 }

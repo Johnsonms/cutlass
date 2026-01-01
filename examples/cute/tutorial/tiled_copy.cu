@@ -75,15 +75,37 @@ __global__ void copy_kernel(TensorS S, TensorD D, ThreadLayout)
   Tensor tile_S = S(make_coord(_,_), blockIdx.x, blockIdx.y);   // (BlockShape_M, BlockShape_N)
   Tensor tile_D = D(make_coord(_,_), blockIdx.x, blockIdx.y);   // (BlockShape_M, BlockShape_N)
 
+  // Debug print: Block and tile info (only first thread of first block)
+  if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n=== copy_kernel Debug Info ===\n");
+    printf("Block (%d, %d), Grid dim (%d, %d)\n", blockIdx.x, blockIdx.y, gridDim.x, gridDim.y);
+    print("tile_S: "); print(tile_S); print("\n");
+    print("tile_D: "); print(tile_D); print("\n");
+  }
+
   // Construct a partitioning of the tile among threads with the given thread arrangement.
 
   // Concept:                         Tensor  ThrLayout       ThrIndex
   Tensor thr_tile_S = local_partition(tile_S, ThreadLayout{}, threadIdx.x);  // (ThrValM, ThrValN)
   Tensor thr_tile_D = local_partition(tile_D, ThreadLayout{}, threadIdx.x);  // (ThrValM, ThrValN)
 
+  // Debug print: Thread partition (threads 0, 1, 42, 255)
+  if ((threadIdx.x == 0 || threadIdx.x == 1 || threadIdx.x == 42 || threadIdx.x == 255)
+      && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n--- Thread %d ---\n", threadIdx.x);
+    print("thr_tile_S: "); print(thr_tile_S); print("\n");
+    print("thr_tile_D: "); print(thr_tile_D); print("\n");
+  }
+
   // Construct a register-backed Tensor with the same shape as each thread's partition
   // Use make_tensor to try to match the layout of thr_tile_S
   Tensor fragment = make_tensor_like(thr_tile_S);               // (ThrValM, ThrValN)
+
+  // Debug print: Fragment info (only thread 0)
+  if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n--- Register fragment ---\n");
+    print("fragment: "); print(fragment); print("\n");
+  }
 
   // Copy from GMEM to RMEM and from RMEM to GMEM
   copy(thr_tile_S, fragment);
@@ -104,11 +126,30 @@ __global__ void copy_kernel_vectorized(TensorS S, TensorD D, Tiled_Copy tiled_co
   Tensor tile_S = S(make_coord(_, _), blockIdx.x, blockIdx.y);  // (BlockShape_M, BlockShape_N)
   Tensor tile_D = D(make_coord(_, _), blockIdx.x, blockIdx.y);  // (BlockShape_M, BlockShape_N)
 
+  // Debug print: TiledCopy info (only first thread of first block)
+  if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n=== copy_kernel_vectorized Debug Info ===\n");
+    printf("Block (%d, %d), Grid dim (%d, %d)\n", blockIdx.x, blockIdx.y, gridDim.x, gridDim.y);
+    print("tiled_copy: \n"); print(tiled_copy); print("\n");
+    print("tile_S: "); print(tile_S); print("\n");
+    print("tile_D: "); print(tile_D); print("\n");
+  }
+
   // Construct a Tensor corresponding to each thread's slice.
   ThrCopy thr_copy = tiled_copy.get_thread_slice(threadIdx.x);
 
   Tensor thr_tile_S = thr_copy.partition_S(tile_S);             // (CopyOp, CopyM, CopyN)
   Tensor thr_tile_D = thr_copy.partition_D(tile_D);             // (CopyOp, CopyM, CopyN)
+
+  // Debug print: Thread partition (threads 0, 1, 42, 100)
+  if (threadIdx.x == 1
+      && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n--- Thread %d (vectorized) ---\n", threadIdx.x);
+    print("thr_copy: "); print(thr_copy); print("\n");
+    print("thr_tile_S: "); print(thr_tile_S); print("\n");
+    print("thr_tile_D: "); print(thr_tile_D); print("\n");
+    printf("thr_tile_S size: %d elements\n", int(size(thr_tile_S)));
+  }
 
   // Construct a register-backed Tensor with the same shape as each thread's partition
   // Use make_fragment because the first mode is the instruction-local mode
@@ -116,6 +157,19 @@ __global__ void copy_kernel_vectorized(TensorS S, TensorD D, Tiled_Copy tiled_co
 
   // Copy from GMEM to RMEM and from RMEM to GMEM
   copy(tiled_copy, thr_tile_S, fragment);
+
+  // Debug print: Fragment after loading from GMEM
+  if ((threadIdx.x == 1) && blockIdx.x == 0 && blockIdx.y == 0) {
+    printf("\n--- Fragment after copy from GMEM (thread %d) ---\n", threadIdx.x);
+    print("fragment (after copy): "); print(fragment); print("\n");
+    printf("First few values: %d\n", int(size(fragment)));
+    int num_print = int(size(fragment));
+    for (int i = 0; i < num_print; ++i) {
+      printf("%.1f ", float(fragment(i)));
+    }
+    printf("\n");
+  }
+
   copy(tiled_copy, fragment, thr_tile_D);
 }
 
@@ -154,6 +208,11 @@ int main(int argc, char** argv)
   Tensor tensor_S = make_tensor(make_gmem_ptr(thrust::raw_pointer_cast(d_S.data())), make_layout(tensor_shape));
   Tensor tensor_D = make_tensor(make_gmem_ptr(thrust::raw_pointer_cast(d_D.data())), make_layout(tensor_shape));
 
+  std::cout << "\n=== Host-side Setup ===\n";
+  std::cout << "tensor_shape: "; print(tensor_shape); std::cout << "\n";
+  std::cout << "tensor_S: "; print(tensor_S); std::cout << "\n";
+  std::cout << "tensor_D: "; print(tensor_D); std::cout << "\n";
+
   //
   // Tile tensors
   //
@@ -161,6 +220,9 @@ int main(int argc, char** argv)
   // Define a statically sized block (M, N).
   // Note, by convention, capital letters are used to represent static modes.
   auto block_shape = make_shape(Int<128>{}, Int<64>{});
+
+  std::cout << "\n--- Tiling Configuration ---\n";
+  std::cout << "block_shape: "; print(block_shape); std::cout << "\n";
 
   if ((size<0>(tensor_shape) % size<0>(block_shape)) || (size<1>(tensor_shape) % size<1>(block_shape))) {
     std::cerr << "The tensor shape must be divisible by the block shape." << std::endl;
@@ -179,10 +241,16 @@ int main(int argc, char** argv)
   Tensor tiled_tensor_S = tiled_divide(tensor_S, block_shape);      // ((M, N), m', n')
   Tensor tiled_tensor_D = tiled_divide(tensor_D, block_shape);      // ((M, N), m', n')
 
+  std::cout << "tiled_tensor_S: "; print(tiled_tensor_S); std::cout << "\n";
+  std::cout << "tiled_tensor_D: "; print(tiled_tensor_D); std::cout << "\n";
+  std::cout << "Number of tiles: (" << size<1>(tiled_tensor_S) << ", " << size<2>(tiled_tensor_S) << ")\n";
+
   // Construct a TiledCopy with a specific access pattern.
   //   This version uses a
   //   (1) Layout-of-Threads to describe the number and arrangement of threads (e.g. row-major, col-major, etc),
   //   (2) Layout-of-Values that each thread will access.
+
+  std::cout << "\n--- TiledCopy Configuration ---\n";
 
   // Thread arrangement
   Layout thr_layout = make_layout(make_shape(Int<32>{}, Int<8>{}));  // (32,8) -> thr_idx
@@ -190,10 +258,21 @@ int main(int argc, char** argv)
   // Value arrangement per thread
   Layout val_layout = make_layout(make_shape(Int<4>{}, Int<1>{}));   // (4,1) -> val_idx
 
+  // Compute and print Tiler
+  std::cout << "\nComputed Tiler (thr * val):\n";
+  std::cout << "  Tiler_M = " << size<0>(thr_layout) << " × " << size<0>(val_layout)
+            << " = " << (size<0>(thr_layout) * size<0>(val_layout)) << "\n";
+  std::cout << "  Tiler_N = " << size<1>(thr_layout) << " × " << size<1>(val_layout)
+            << " = " << (size<1>(thr_layout) * size<1>(val_layout)) << "\n";
+
   // Define `AccessType` which controls the size of the actual memory access instruction.
   using CopyOp = UniversalCopy<uint_byte_t<sizeof(Element) * size(val_layout)>>;     // A very specific access width copy instruction
   //using CopyOp = UniversalCopy<cutlass::AlignedArray<Element, size(val_layout)>>;  // A more generic type that supports many copy strategies
   //using CopyOp = AutoVectorizingCopy;                                              // An adaptable-width instruction that assumes maximal alignment of inputs
+
+  std::cout << "\nMemory access pattern:\n";
+  std::cout << "  Vector width: " << (sizeof(Element) * size(val_layout)) << " bytes\n";
+  std::cout << "  Elements per access: " << size(val_layout) << "\n";
 
   // A Copy_Atom corresponds to one CopyOperation applied to Tensors of type Element.
   using Atom = Copy_Atom<CopyOp, Element>;
@@ -208,12 +287,19 @@ int main(int argc, char** argv)
                                          thr_layout,         // thread layout (e.g. 32x4 Col-Major)
                                          val_layout);        // value layout (e.g. 4x1)
 
+  std::cout << "\ntiled_copy: "; print(tiled_copy); std::cout << "\n";
+
   //
   // Determine grid and block dimensions
   //
 
   dim3 gridDim (size<1>(tiled_tensor_D), size<2>(tiled_tensor_D));   // Grid shape corresponds to modes m' and n'
   dim3 blockDim(size(thr_layout));
+
+  std::cout << "\n--- Kernel Launch Configuration ---\n";
+  std::cout << "gridDim:  (" << gridDim.x << ", " << gridDim.y << ", " << gridDim.z << ")\n";
+  std::cout << "blockDim: (" << blockDim.x << ", " << blockDim.y << ", " << blockDim.z << ")\n";
+  std::cout << "Total threads: " << (gridDim.x * gridDim.y * blockDim.x) << "\n";
 
   //
   // Launch the kernel
