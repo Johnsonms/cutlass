@@ -339,8 +339,20 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   TiledCopy tiled_t2r_copy = make_tmem_copy(SM100_TMEM_LOAD_32dp32b1x{}, tCtAcc);
   ThrCopy   thr_t2r_copy   = tiled_t2r_copy.get_slice(threadIdx.x);
 
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== Epilogue: TMEM to RMEM Copy ===\n");
+    printf("tiled_t2r_copy:\t"); print(tiled_t2r_copy); printf("\n");
+    printf("thr_t2r_copy:\t"); print(thr_t2r_copy); printf("\n");
+  }
+
   Tensor tDgC = thr_t2r_copy.partition_D(tCgC);                   // (CpyD, NumCpy_M, NumCpy_N)
   Tensor tDrC = make_fragment_like(tDgC);                         // (CpyD, NumCpy_M, NumCpy_N)
+
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("tDgC:\t"); print(tDgC); printf("\n");
+    printf("tDrC:\t"); print(tDrC); printf("\n");
+  }
+
   // Load C tensor GMEM -> RMEM
   copy(tDgC, tDrC);
 
@@ -348,6 +360,13 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   Tensor tDgD   = thr_t2r_copy.partition_D(tCgD);                 // (CpyD, NumCpy_M, NumCpy_N)
   using AccType = typename decltype(tCtAcc)::value_type;
   Tensor tDrAcc = make_tensor<AccType>(shape(tDgD));              // (CpyD, NumCpy_M, NumCpy_N)
+
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("tDtAcc:\t"); print(tDtAcc); printf("\n");
+    printf("tDgD:\t"); print(tDgD); printf("\n");
+    printf("tDrAcc:\t"); print(tDrAcc); printf("\n");
+  }
+
   // Load TMEM -> RMEM
   copy(tiled_t2r_copy, tDtAcc, tDrAcc);
 
@@ -370,6 +389,15 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   // AXPBY RMEM -> RMEM: tDrC = alpha * tDrAcc + beta * tDrC
   axpby(alpha, tDrAcc, beta, tDrC);
 
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== After AXPBY (alpha=%.2f, beta=%.2f) ===\n", float(alpha), float(beta));
+    printf("Result tDrC shape:\t"); print(shape(tDrC)); printf("\n");
+    printf("First 4 scaled output values:\n");
+    for (int i = 0; i < min(4, size(tDrC)); ++i) {
+      printf("  tDrC[%d] = %.6f\n", i, float(tDrC(i)));
+    }
+  }
+
   // DEBUG: Print final values before store (enable for debugging)
   #ifdef DEBUG_PRINT_TENSORS
   if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
@@ -383,13 +411,26 @@ gemm_device(ATensor mA,                      // (Gemm_M, Gemm_K)
   // Store RMEM -> GMEM
   copy(tDrC, tDgD);
 
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== Store Complete: RMEM -> GMEM ===\n");
+    printf("Stored tDrC to tDgD\n");
+  }
+
   __syncthreads();
+
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("\n=== TMEM Deallocation ===\n");
+  }
 
   // Release the right to allocate before deallocations so that the next CTA can rasterize
   // Then deallocate TMEM
   if (elect_one_warp) {
     tmem_allocator.release_allocation_lock();
     tmem_allocator.free(shared_storage.tmem_base_ptr, TmemAllocator::Sm100TmemCapacityColumns);
+  }
+
+  if (threadIdx.x == 0 && blockIdx.x == 1 && blockIdx.y == 1) {
+    printf("=== Epilogue Complete ===\n\n");
   }
 }
 
@@ -586,6 +627,9 @@ void tensor_operations()
 {
   using Type = float;
 
+  auto layout = Layout<Shape <_2,Shape <_1,_6>>,
+                     Stride<_1,Stride<_6,_2>>>{};
+  print_layout(layout);
   // Create example data
   constexpr int total_size = 3 * 2 * 2 * 5 * 2; // 120 elements
   std::vector<Type> data(total_size);
@@ -604,7 +648,7 @@ void tensor_operations()
                        make_stride(make_stride(       4,1), make_stride(Int<2>{},      13,     100)));
 
   // print_latex expects Layout, not Tensor - use layout(A) to extract it
-  print_latex(make_layout(shape(A), stride(A)));
+  print_layout(make_layout(shape(A), stride(A)));
   printf("Original Tensor A:\n");
   printf("  Shape:  "); print(shape(A)); printf("\n");
   printf("  Stride: "); print(stride(A)); printf("\n");
@@ -672,7 +716,7 @@ int main(int argc, char** argv)
 #if defined(CUTLASS_ARCH_MMA_SM100_SUPPORTED)
 
   // Demonstrate CuTe tensor operations and slicing
-  // tensor_operations();
+  tensor_operations();
 
   int Gemm_M = 512;
   if (argc >= 2)

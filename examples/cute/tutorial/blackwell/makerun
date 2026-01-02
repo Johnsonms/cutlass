@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# makerun: Compile and run tensor.cu with CuTe/CUTLASS
+# Usage: ./makerun [additional nvcc flags]
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# echo -e "${YELLOW}=== CuTe Tensor Compiler & Runner ===${NC}\n"
+
+# Configuration
+SOURCE_FILE="tensor.cu"
+OUTPUT_FILE="tensor_test"
+CUTLASS_DIR="/app/tensorrt_llm/cutlass"
+CUDA_ARCH="100a"  # Blackwell architecture
+
+# Check if source file exists
+if [ ! -f "$SOURCE_FILE" ]; then
+    # echo -e "${RED}Error: $SOURCE_FILE not found!${NC}"
+    exit 1
+fi
+
+# Check if CUTLASS directory exists
+if [ ! -d "$CUTLASS_DIR" ]; then
+    # echo -e "${RED}Error: CUTLASS directory not found at $CUTLASS_DIR${NC}"
+    exit 1
+fi
+
+# Compilation flags
+NVCC_FLAGS=(
+    -std=c++17
+    -arch=sm_${CUDA_ARCH}
+    -I${CUTLASS_DIR}/include
+    -I${CUTLASS_DIR}/examples/cute/tutorial
+    -I${CUTLASS_DIR}/tools/util/include
+    -lineinfo
+    --expt-relaxed-constexpr
+    -DCUTLASS_ARCH_MMA_SM100_SUPPORTED
+    -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1
+)
+
+# Debug or Release mode
+if [ "$1" == "debug" ]; then
+    # echo -e "${YELLOW}Compiling in DEBUG mode...${NC}"
+    NVCC_FLAGS+=(-g -G -O0)
+    shift
+else
+    # echo -e "${YELLOW}Compiling in RELEASE mode...${NC}"
+    NVCC_FLAGS+=(-O3)
+fi
+
+# Add any additional user flags
+NVCC_FLAGS+=("$@")
+
+# Print compilation command
+# echo -e "${YELLOW}Compiling: $SOURCE_FILE -> $OUTPUT_FILE${NC}"
+# echo "nvcc ${NVCC_FLAGS[@]} $SOURCE_FILE -o $OUTPUT_FILE"
+# echo ""
+
+# Compile
+if nvcc "${NVCC_FLAGS[@]}" "$SOURCE_FILE" -o "$OUTPUT_FILE"; then
+    echo -e "${GREEN}✓ Compilation successful!${NC}\n"
+else
+    # echo -e "${RED}✗ Compilation failed!${NC}"
+    exit 1
+fi
+
+# Run the program
+# echo -e "${YELLOW}=== Running $OUTPUT_FILE ===${NC}\n"
+./$OUTPUT_FILE
+
+# Check exit status
+if [ $? -eq 0 ]; then
+    echo -e "\n${GREEN}✓ Execution completed successfully!${NC}"
+else
+    echo -e "\n${RED}✗ Execution failed!${NC}"
+    exit 1
+fi
